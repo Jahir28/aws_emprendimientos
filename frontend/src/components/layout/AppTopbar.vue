@@ -84,6 +84,7 @@ const connectionClass = computed(() => `is-${connectionStatus.value}`)
 .connection {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-height: 38px;
   padding: 0 13px;
@@ -93,6 +94,8 @@ const connectionClass = computed(() => `is-${connectionStatus.value}`)
   background: #ecfdf3;
   font-weight: 800;
   font-size: 0.86rem;
+  line-height: 1;
+  white-space: nowrap;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
@@ -102,6 +105,7 @@ const connectionClass = computed(() => `is-${connectionStatus.value}`)
 .connection span {
   width: 9px;
   height: 9px;
+  flex: 0 0 auto;
   border-radius: 50%;
   background: var(--success);
 }

@@ -27,8 +27,8 @@
     <div class="sidebar-footer">
       <span class="status-dot"></span>
       <div>
-        <strong>Ambiente demo</strong>
-        <span>Datos simulados</span>
+        <strong>AWS Producción</strong>
+        <span>API Gateway • Lambda • DynamoDB</span>
       </div>
     </div>
   </aside>

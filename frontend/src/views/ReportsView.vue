@@ -3,7 +3,7 @@
     <PageHeader
       eyebrow="Análisis"
       title="Reportes"
-      description="Indicadores simulados para presentar desempeño de ventas, clientes e inventario."
+      description="Indicadores para presentar desempeño de ventas, clientes e inventario."
     />
 
     <section class="grid metrics-grid">

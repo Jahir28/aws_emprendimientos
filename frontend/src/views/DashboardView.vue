@@ -8,7 +8,7 @@
       </div>
       <div class="welcome-badge">
         <i class="pi pi-bolt"></i>
-        Demo activo
+        AWS activo
       </div>
     </section>
 
@@ -24,7 +24,7 @@
       <div class="card panel">
         <div>
           <h3 class="panel-title">Productos más vendidos</h3>
-          <p class="panel-subtitle">Ranking simulado por unidades vendidas</p>
+          <p class="panel-subtitle">Ranking de referencia por unidades vendidas</p>
         </div>
         <div class="chart-box">
           <Bar :data="topProductsData" :options="barOptions" />
