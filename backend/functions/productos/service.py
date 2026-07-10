@@ -1,31 +1,27 @@
-"""Servicio mock para operaciones CRUD de Productos."""
+"""Servicio para operaciones CRUD de Productos en DynamoDB."""
 
+import logging
+import os
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
 
+import boto3
+
 from models import Product
-from responses import bad_request, created, success
+from responses import bad_request, created, internal_error, not_found, success
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+PRODUCTOS_TABLE = os.environ["PRODUCTOS_TABLE"]
+dynamodb = boto3.resource("dynamodb")
+productos_table = dynamodb.Table(PRODUCTOS_TABLE)
 
 
 def _current_timestamp():
     """Genera una fecha ISO 8601 en UTC para datos simulados."""
     return datetime.now(timezone.utc).isoformat()
-
-
-def _mock_product(product_id="prod-001"):
-    """Devuelve un producto de ejemplo sin consultar DynamoDB."""
-    timestamp = "2026-07-10T00:00:00+00:00"
-    return Product(
-        producto_id=product_id,
-        nombre="Cafe artesanal",
-        descripcion="Producto de ejemplo para emprendimientos.",
-        precio=12.5,
-        stock=25,
-        categoria="Bebidas",
-        created_at=timestamp,
-        updated_at=timestamp,
-    )
 
 
 def _is_blank(value):
@@ -46,7 +42,7 @@ def _parse_non_negative_number(value, field_name):
     if number < 0:
         return None, f"El campo {field_name} debe ser mayor o igual a cero."
 
-    return float(number), None
+    return number, None
 
 
 def _parse_non_negative_integer(value, field_name):
@@ -101,63 +97,140 @@ def _validate_product_payload(payload, require_name):
     return normalized, None
 
 
+def _to_json_compatible(value):
+    """Convierte valores Decimal de DynamoDB a tipos compatibles con JSON."""
+    if isinstance(value, list):
+        return [_to_json_compatible(item) for item in value]
+
+    if isinstance(value, dict):
+        return {key: _to_json_compatible(item) for key, item in value.items()}
+
+    if isinstance(value, Decimal):
+        if value == value.to_integral_value():
+            return int(value)
+        return float(value)
+
+    return value
+
+
 def create_product(payload):
-    """Simula la creacion de un producto."""
+    """Crea un producto en DynamoDB."""
     normalized, error = _validate_product_payload(payload, require_name=True)
     if error:
         return bad_request(error)
 
-    timestamp = _current_timestamp()
-    product = Product(
-        producto_id=str(uuid4()),
-        nombre=normalized["nombre"],
-        descripcion=normalized.get("descripcion", "Descripcion simulada."),
-        precio=normalized.get("precio", 0),
-        stock=normalized.get("stock", 0),
-        categoria=normalized.get("categoria", "General"),
-        created_at=timestamp,
-        updated_at=timestamp,
-    )
-    return created(product.to_dict(), "Producto creado correctamente.")
+    try:
+        timestamp = _current_timestamp()
+        product = Product(
+            producto_id=str(uuid4()),
+            nombre=normalized["nombre"],
+            descripcion=normalized.get("descripcion", ""),
+            precio=normalized.get("precio", Decimal("0")),
+            stock=normalized.get("stock", 0),
+            categoria=normalized.get("categoria", ""),
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+        item = product.to_dict()
+        item["precio"] = normalized.get("precio", Decimal("0"))
+
+        productos_table.put_item(Item=item)
+
+        return created(_to_json_compatible(item), "Producto creado correctamente.")
+    except Exception:
+        logger.exception("Error al crear producto en DynamoDB.")
+        return internal_error("Ocurrio un error interno al procesar la solicitud.")
 
 
 def get_product(product_id):
-    """Simula la consulta de un producto por ID."""
-    return success(_mock_product(product_id).to_dict(), "Producto encontrado.")
+    """Consulta un producto por ID en DynamoDB."""
+    try:
+        response = productos_table.get_item(Key={"producto_id": product_id})
+        item = response.get("Item")
+        if not item:
+            return not_found("Producto no encontrado.")
+
+        return success(_to_json_compatible(item), "Producto encontrado.")
+    except Exception:
+        logger.exception("Error al obtener producto desde DynamoDB.")
+        return internal_error("Ocurrio un error interno al procesar la solicitud.")
 
 
 def list_products():
-    """Simula el listado de productos."""
-    products = [
-        _mock_product("prod-001").to_dict(),
-        _mock_product("prod-002").to_dict(),
-    ]
-    return success(products, "Productos listados correctamente.")
+    """Lista productos usando Scan en DynamoDB."""
+    try:
+        items = []
+        response = productos_table.scan()
+        items.extend(response.get("Items", []))
+
+        while "LastEvaluatedKey" in response:
+            response = productos_table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+            items.extend(response.get("Items", []))
+
+        return success(_to_json_compatible(items), "Productos listados correctamente.")
+    except Exception:
+        logger.exception("Error al listar productos desde DynamoDB.")
+        return internal_error("Ocurrio un error interno al procesar la solicitud.")
 
 
 def update_product(product_id, payload):
-    """Simula la actualizacion de un producto."""
+    """Actualiza parcialmente un producto en DynamoDB."""
     normalized, error = _validate_product_payload(payload, require_name=False)
     if error:
         return bad_request(error)
 
-    current = _mock_product(product_id).to_dict()
-    current.update(
-        {
-            "nombre": normalized.get("nombre", current["nombre"]),
-            "descripcion": normalized.get("descripcion", current["descripcion"]),
-            "precio": normalized.get("precio", current["precio"]),
-            "stock": normalized.get("stock", current["stock"]),
-            "categoria": normalized.get("categoria", current["categoria"]),
-            "updated_at": _current_timestamp(),
-        }
-    )
-    return success(current, "Producto actualizado correctamente.")
+    try:
+        if not normalized:
+            return bad_request("Debe enviar al menos un campo para actualizar.")
+
+        normalized["updated_at"] = _current_timestamp()
+        expression_names = {}
+        expression_values = {}
+        update_parts = []
+
+        for index, (field_name, value) in enumerate(normalized.items()):
+            name_key = f"#field{index}"
+            value_key = f":value{index}"
+            expression_names[name_key] = field_name
+            expression_values[value_key] = value
+            update_parts.append(f"{name_key} = {value_key}")
+
+        response = productos_table.update_item(
+            Key={"producto_id": product_id},
+            UpdateExpression="SET " + ", ".join(update_parts),
+            ExpressionAttributeNames=expression_names,
+            ExpressionAttributeValues=expression_values,
+            ConditionExpression="attribute_exists(producto_id)",
+            ReturnValues="ALL_NEW",
+        )
+
+        return success(
+            _to_json_compatible(response.get("Attributes", {})),
+            "Producto actualizado correctamente.",
+        )
+    except Exception as exc:
+        error_code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+        if error_code == "ConditionalCheckFailedException":
+            return not_found("Producto no encontrado.")
+
+        logger.exception("Error al actualizar producto en DynamoDB.")
+        return internal_error("Ocurrio un error interno al procesar la solicitud.")
 
 
 def delete_product(product_id):
-    """Simula la eliminacion de un producto."""
-    return success(
-        {"producto_id": product_id, "deleted": True},
-        "Producto eliminado correctamente.",
-    )
+    """Elimina un producto en DynamoDB."""
+    try:
+        response = productos_table.delete_item(
+            Key={"producto_id": product_id},
+            ReturnValues="ALL_OLD",
+        )
+        if not response.get("Attributes"):
+            return not_found("Producto no encontrado.")
+
+        return success(
+            {"producto_id": product_id, "deleted": True},
+            "Producto eliminado correctamente.",
+        )
+    except Exception:
+        logger.exception("Error al eliminar producto en DynamoDB.")
+        return internal_error("Ocurrio un error interno al procesar la solicitud.")

@@ -1,9 +1,101 @@
-"""Pruebas unitarias para la Lambda Productos."""
+"""Pruebas unitarias para la Lambda Productos con DynamoDB mockeado."""
 
 import json
+import os
+import sys
+import types
 import unittest
+from decimal import Decimal
 
-from lambda_function import handler
+
+os.environ["PRODUCTOS_TABLE"] = "aws-emprendimientos-dev-productos"
+
+
+class FakeDynamoDBError(Exception):
+    """Error compatible con el formato basico de botocore ClientError."""
+
+    def __init__(self, code):
+        super().__init__(code)
+        self.response = {"Error": {"Code": code}}
+
+
+class FakeDynamoDBTable:
+    """Mock simple de una tabla DynamoDB para pruebas unitarias."""
+
+    def __init__(self):
+        self.items = {}
+        self.fail_next_operation = False
+
+    def reset(self):
+        self.items = {}
+        self.fail_next_operation = False
+
+    def fail_next(self):
+        self.fail_next_operation = True
+
+    def _raise_if_needed(self):
+        if self.fail_next_operation:
+            self.fail_next_operation = False
+            raise RuntimeError("DynamoDB mock error")
+
+    def scan(self, **kwargs):
+        self._raise_if_needed()
+        return {"Items": list(self.items.values())}
+
+    def get_item(self, Key):
+        self._raise_if_needed()
+        item = self.items.get(Key["producto_id"])
+        return {"Item": item} if item else {}
+
+    def put_item(self, Item):
+        self._raise_if_needed()
+        self.items[Item["producto_id"]] = Item.copy()
+        return {}
+
+    def update_item(
+        self,
+        Key,
+        UpdateExpression,
+        ExpressionAttributeNames,
+        ExpressionAttributeValues,
+        ConditionExpression,
+        ReturnValues,
+    ):
+        self._raise_if_needed()
+        product_id = Key["producto_id"]
+        if product_id not in self.items:
+            raise FakeDynamoDBError("ConditionalCheckFailedException")
+
+        item = self.items[product_id]
+        for name_key, field_name in ExpressionAttributeNames.items():
+            index = name_key.replace("#field", "")
+            item[field_name] = ExpressionAttributeValues[f":value{index}"]
+
+        return {"Attributes": item.copy()}
+
+    def delete_item(self, Key, ReturnValues):
+        self._raise_if_needed()
+        item = self.items.pop(Key["producto_id"], None)
+        return {"Attributes": item} if item else {}
+
+
+class FakeDynamoDBResource:
+    """Mock del recurso DynamoDB de boto3."""
+
+    def __init__(self):
+        self.table = FakeDynamoDBTable()
+        self.table_name = None
+
+    def Table(self, table_name):
+        self.table_name = table_name
+        return self.table
+
+
+fake_resource = FakeDynamoDBResource()
+fake_boto3 = types.SimpleNamespace(resource=lambda service_name: fake_resource)
+sys.modules["boto3"] = fake_boto3
+
+from lambda_function import handler  # noqa: E402
 
 
 def _event(method, path, body=None, product_id=None):
@@ -15,9 +107,27 @@ def _event(method, path, body=None, product_id=None):
         "requestContext": {
             "http": {
                 "method": method,
-                "path": path,
             }
         },
+        "pathParameters": {},
+        "body": None,
+        "isBase64Encoded": False,
+    }
+
+    if product_id:
+        event["pathParameters"] = {"producto_id": product_id}
+
+    if body is not None:
+        event["body"] = json.dumps(body)
+
+    return event
+
+
+def _rest_event(method, path, body=None, product_id=None):
+    """Construye eventos compatibles con API Gateway REST API v1."""
+    event = {
+        "httpMethod": method,
+        "path": path,
         "pathParameters": {},
         "body": None,
         "isBase64Encoded": False,
@@ -39,23 +149,81 @@ def _raw_body_event(method, path, raw_body, product_id=None):
     return event
 
 
-class TestProductosLambda(unittest.TestCase):
-    """Valida rutas CRUD y respuestas HTTP principales."""
+def _seed_product(product_id="prod-001"):
+    """Agrega un producto directamente al mock de DynamoDB."""
+    fake_resource.table.items[product_id] = {
+        "producto_id": product_id,
+        "nombre": "Cafe artesanal",
+        "descripcion": "Producto de ejemplo.",
+        "precio": Decimal("12.5"),
+        "stock": 25,
+        "categoria": "Bebidas",
+        "created_at": "2026-07-10T00:00:00+00:00",
+        "updated_at": "2026-07-10T00:00:00+00:00",
+    }
 
-    def test_get_list_products(self):
+
+class TestProductosLambda(unittest.TestCase):
+    """Valida rutas CRUD, validaciones y errores de DynamoDB."""
+
+    def setUp(self):
+        fake_resource.table.reset()
+
+    def test_uses_productos_table_environment_variable(self):
+        self.assertEqual(fake_resource.table_name, "aws-emprendimientos-dev-productos")
+
+    def test_get_list_products_empty_table(self):
         response = handler(_event("GET", "/productos"), None)
         body = json.loads(response["body"])
 
         self.assertEqual(response["statusCode"], 200)
         self.assertEqual(response["headers"]["Content-Type"], "application/json")
-        self.assertIsInstance(body["data"], list)
+        self.assertEqual(body["data"], [])
 
-    def test_get_product_by_id(self):
-        response = handler(_event("GET", "/productos/prod-001", product_id="prod-001"), None)
+    def test_get_list_products_http_api_v2_uses_raw_path(self):
+        event = {
+            "requestContext": {
+                "http": {
+                    "method": "GET",
+                }
+            },
+            "rawPath": "/productos",
+        }
+
+        response = handler(event, None)
         body = json.loads(response["body"])
 
         self.assertEqual(response["statusCode"], 200)
-        self.assertEqual(body["data"]["producto_id"], "prod-001")
+        self.assertEqual(body["data"], [])
+
+    def test_post_create_product_http_api_v2_uses_raw_path(self):
+        payload = {
+            "nombre": "Mermelada artesanal",
+            "precio": 4.75,
+            "stock": 10,
+        }
+        event = {
+            "requestContext": {
+                "http": {
+                    "method": "POST",
+                }
+            },
+            "rawPath": "/productos",
+            "body": json.dumps(payload),
+        }
+
+        response = handler(event, None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 201)
+        self.assertEqual(body["data"]["nombre"], "Mermelada artesanal")
+
+    def test_get_list_products_rest_api_v1(self):
+        response = handler(_rest_event("GET", "/productos"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"], [])
 
     def test_post_create_product(self):
         payload = {
@@ -70,6 +238,62 @@ class TestProductosLambda(unittest.TestCase):
 
         self.assertEqual(response["statusCode"], 201)
         self.assertEqual(body["data"]["nombre"], "Mermelada artesanal")
+        self.assertIn(body["data"]["producto_id"], fake_resource.table.items)
+
+    def test_get_existing_product_by_id(self):
+        _seed_product("prod-001")
+
+        response = handler(_event("GET", "/productos/prod-001", product_id="prod-001"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"]["producto_id"], "prod-001")
+        self.assertEqual(body["data"]["precio"], 12.5)
+
+    def test_get_missing_product_returns_not_found(self):
+        response = handler(_event("GET", "/productos/no-existe", product_id="no-existe"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 404)
+        self.assertEqual(body["message"], "Producto no encontrado.")
+
+    def test_put_update_product(self):
+        _seed_product("prod-001")
+        payload = {
+            "nombre": "Cafe premium",
+            "precio": 15.0,
+            "stock": 8,
+        }
+
+        response = handler(_event("PUT", "/productos/prod-001", payload, "prod-001"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"]["producto_id"], "prod-001")
+        self.assertEqual(body["data"]["nombre"], "Cafe premium")
+        self.assertEqual(body["data"]["precio"], 15)
+        self.assertEqual(body["data"]["stock"], 8)
+
+    def test_put_accepts_valid_partial_update(self):
+        _seed_product("prod-001")
+
+        response = handler(_event("PUT", "/productos/prod-001", {"stock": 3}, "prod-001"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"]["producto_id"], "prod-001")
+        self.assertEqual(body["data"]["stock"], 3)
+        self.assertEqual(body["data"]["nombre"], "Cafe artesanal")
+
+    def test_delete_product(self):
+        _seed_product("prod-001")
+
+        response = handler(_event("DELETE", "/productos/prod-001", product_id="prod-001"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertTrue(body["data"]["deleted"])
+        self.assertNotIn("prod-001", fake_resource.table.items)
 
     def test_post_rejects_missing_name(self):
         response = handler(_event("POST", "/productos", {"precio": 4.75}), None)
@@ -96,40 +320,6 @@ class TestProductosLambda(unittest.TestCase):
 
         self.assertEqual(response["statusCode"], 400)
 
-    def test_put_update_product(self):
-        payload = {
-            "nombre": "Cafe premium",
-            "precio": 15.0,
-            "stock": 8,
-        }
-        response = handler(_event("PUT", "/productos/prod-001", payload, "prod-001"), None)
-        body = json.loads(response["body"])
-
-        self.assertEqual(response["statusCode"], 200)
-        self.assertEqual(body["data"]["producto_id"], "prod-001")
-        self.assertEqual(body["data"]["nombre"], "Cafe premium")
-
-    def test_put_accepts_valid_partial_update(self):
-        response = handler(_event("PUT", "/productos/prod-001", {"stock": 3}, "prod-001"), None)
-        body = json.loads(response["body"])
-
-        self.assertEqual(response["statusCode"], 200)
-        self.assertEqual(body["data"]["producto_id"], "prod-001")
-        self.assertEqual(body["data"]["stock"], 3)
-        self.assertEqual(body["data"]["nombre"], "Cafe artesanal")
-
-    def test_delete_product(self):
-        response = handler(_event("DELETE", "/productos/prod-001", product_id="prod-001"), None)
-        body = json.loads(response["body"])
-
-        self.assertEqual(response["statusCode"], 200)
-        self.assertTrue(body["data"]["deleted"])
-
-    def test_unknown_route_returns_not_found(self):
-        response = handler(_event("GET", "/no-existe"), None)
-
-        self.assertEqual(response["statusCode"], 404)
-
     def test_invalid_json_returns_bad_request(self):
         response = handler(_raw_body_event("POST", "/productos", "{invalid-json"), None)
 
@@ -149,10 +339,20 @@ class TestProductosLambda(unittest.TestCase):
 
     def test_event_without_path_returns_bad_request(self):
         event = _event("GET", "/productos")
-        event["requestContext"]["http"].pop("path")
+        event.pop("rawPath")
         response = handler(event, None)
 
         self.assertEqual(response["statusCode"], 400)
+
+    def test_dynamodb_internal_error_returns_500(self):
+        fake_resource.table.fail_next()
+
+        with self.assertLogs("service", level="ERROR"):
+            response = handler(_event("GET", "/productos"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 500)
+        self.assertEqual(body["message"], "Ocurrio un error interno al procesar la solicitud.")
 
 
 if __name__ == "__main__":

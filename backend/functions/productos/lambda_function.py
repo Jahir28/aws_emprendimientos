@@ -16,14 +16,27 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+def _get_method_and_path(event):
+    """Extrae metodo y ruta desde API Gateway HTTP API v2 o REST API v1."""
+    request_context = event.get("requestContext", {})
+    http_context = request_context.get("http", {})
+
+    method = http_context.get("method")
+    path = event.get("rawPath")
+
+    if not method:
+        method = event.get("httpMethod")
+
+    if not path:
+        path = event.get("path")
+
+    return (method or "").upper(), path or ""
+
+
 def handler(event, context):
     """Procesa eventos de API Gateway HTTP API y delega al servicio."""
     try:
-        request_context = event.get("requestContext", {})
-        http_context = request_context.get("http", {})
-
-        method = http_context.get("method", "").upper()
-        path = http_context.get("path", "")
+        method, path = _get_method_and_path(event)
         if not method or not path:
             return bad_request("El evento no contiene metodo HTTP o ruta.")
 

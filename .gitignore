@@ -49,6 +49,9 @@ override.tf.json
 *_override.tf.json
 *.tfvars
 *.tfvars.json
+infrastructure/terraform/build/
+infrastructure/terraform/tfplan
+*.tfplan
 
 # Logs
 *.log
@@ -66,4 +69,3 @@ pnpm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
-

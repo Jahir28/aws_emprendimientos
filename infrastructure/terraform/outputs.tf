@@ -29,3 +29,18 @@ output "productos_table_arn" {
   description = "ARN de la tabla DynamoDB de Productos."
   value       = module.productos_table.table_arn
 }
+
+output "productos_lambda_function_name" {
+  description = "Nombre de la funcion Lambda de Productos."
+  value       = aws_lambda_function.productos.function_name
+}
+
+output "productos_lambda_function_arn" {
+  description = "ARN de la funcion Lambda de Productos."
+  value       = aws_lambda_function.productos.arn
+}
+
+output "productos_lambda_table_name" {
+  description = "Nombre de la tabla DynamoDB usada por la Lambda de Productos."
+  value       = module.productos_table.table_name
+}
