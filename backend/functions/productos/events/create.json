@@ -1,0 +1,22 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /productos",
+  "rawPath": "/productos",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/productos",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "local-test"
+    }
+  },
+  "body": "{\"nombre\":\"Mermelada artesanal\",\"descripcion\":\"Producto local de ejemplo.\",\"precio\":4.75,\"stock\":10,\"categoria\":\"Alimentos\"}",
+  "isBase64Encoded": false
+}
+

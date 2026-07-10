@@ -1,0 +1,23 @@
+{
+  "version": "2.0",
+  "routeKey": "DELETE /productos/{producto_id}",
+  "rawPath": "/productos/prod-001",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json"
+  },
+  "pathParameters": {
+    "producto_id": "prod-001"
+  },
+  "requestContext": {
+    "http": {
+      "method": "DELETE",
+      "path": "/productos/prod-001",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "local-test"
+    }
+  },
+  "isBase64Encoded": false
+}
+

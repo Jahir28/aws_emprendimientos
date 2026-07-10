@@ -1,0 +1,25 @@
+{
+  "version": "2.0",
+  "routeKey": "PUT /productos/{producto_id}",
+  "rawPath": "/productos/prod-001",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "content-type": "application/json"
+  },
+  "pathParameters": {
+    "producto_id": "prod-001"
+  },
+  "requestContext": {
+    "http": {
+      "method": "PUT",
+      "path": "/productos/prod-001",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "local-test"
+    }
+  },
+  "body": "{\"nombre\":\"Cafe premium\",\"precio\":15.0,\"stock\":8}",
+  "isBase64Encoded": false
+}
+
