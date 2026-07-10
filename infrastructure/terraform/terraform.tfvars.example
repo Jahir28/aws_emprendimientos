@@ -1,0 +1,8 @@
+# Valores de ejemplo para configurar Terraform localmente.
+# Copia este archivo como terraform.tfvars si necesitas ajustar variables.
+# No agregues credenciales ni datos sensibles en archivos versionados.
+
+aws_region   = "us-west-2"
+project_name = "aws-emprendimientos"
+environment  = "dev"
+
