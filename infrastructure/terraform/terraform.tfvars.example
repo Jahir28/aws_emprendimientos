@@ -6,3 +6,5 @@ aws_region   = "us-west-2"
 project_name = "aws-emprendimientos"
 environment  = "dev"
 
+dynamodb_point_in_time_recovery_enabled = false
+dynamodb_deletion_protection_enabled    = false

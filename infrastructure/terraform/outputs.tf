@@ -20,3 +20,12 @@ output "common_prefix" {
   value       = local.common_prefix
 }
 
+output "productos_table_name" {
+  description = "Nombre de la tabla DynamoDB de Productos."
+  value       = module.productos_table.table_name
+}
+
+output "productos_table_arn" {
+  description = "ARN de la tabla DynamoDB de Productos."
+  value       = module.productos_table.table_arn
+}

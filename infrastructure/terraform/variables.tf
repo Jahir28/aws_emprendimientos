@@ -34,3 +34,18 @@ variable "environment" {
   }
 }
 
+# Controla Point-in-Time Recovery para tablas DynamoDB.
+# En desarrollo queda desactivado para mantener la configuracion simple.
+variable "dynamodb_point_in_time_recovery_enabled" {
+  description = "Indica si las tablas DynamoDB deben habilitar Point-in-Time Recovery."
+  type        = bool
+  default     = false
+}
+
+# Controla deletion protection para tablas DynamoDB.
+# En desarrollo queda desactivado para permitir cambios controlados durante pruebas.
+variable "dynamodb_deletion_protection_enabled" {
+  description = "Indica si las tablas DynamoDB deben habilitar proteccion contra eliminacion."
+  type        = bool
+  default     = false
+}
