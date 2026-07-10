@@ -124,3 +124,23 @@ output "reportes_api_base_url" {
   description = "URL base del recurso Reportes en el stage dev."
   value       = "${aws_apigatewayv2_stage.dev.invoke_url}/reportes"
 }
+
+output "alertas_lambda_name" {
+  description = "Nombre de la funcion Lambda de Alertas."
+  value       = aws_lambda_function.alertas.function_name
+}
+
+output "alertas_sns_topic_arn" {
+  description = "ARN del tema SNS de Alertas."
+  value       = aws_sns_topic.alertas.arn
+}
+
+output "alertas_eventbridge_rule_name" {
+  description = "Nombre de la regla programada de EventBridge para Alertas."
+  value       = aws_cloudwatch_event_rule.alertas_schedule.name
+}
+
+output "alertas_email_subscription_status" {
+  description = "Estado informativo de la suscripcion por correo a las alertas."
+  value       = var.alertas_email != "" ? "Pendiente de confirmacion en el correo configurado." : "No configurada; alertas_email esta vacio."
+}

@@ -49,3 +49,30 @@ variable "dynamodb_deletion_protection_enabled" {
   type        = bool
   default     = false
 }
+
+# Correo electronico que recibira las alertas SNS.
+# Si queda vacio, no se crea la suscripcion.
+variable "alertas_email" {
+  description = "Correo electronico para suscribirse al tema SNS de alertas. Si esta vacio, no se crea suscripcion."
+  type        = string
+  default     = ""
+}
+
+# Limite de stock bajo usado por la Lambda Alertas.
+variable "stock_minimo_alerta" {
+  description = "Limite entero no negativo para generar alertas de bajo stock."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.stock_minimo_alerta >= 0 && floor(var.stock_minimo_alerta) == var.stock_minimo_alerta
+    error_message = "stock_minimo_alerta debe ser un entero no negativo."
+  }
+}
+
+# Frecuencia de ejecucion programada para la Lambda Alertas.
+variable "alertas_schedule_expression" {
+  description = "Expresion schedule de EventBridge para ejecutar la Lambda Alertas."
+  type        = string
+  default     = "rate(1 day)"
+}

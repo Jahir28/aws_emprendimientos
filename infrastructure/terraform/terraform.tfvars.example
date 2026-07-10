@@ -8,3 +8,7 @@ environment  = "dev"
 
 dynamodb_point_in_time_recovery_enabled = false
 dynamodb_deletion_protection_enabled    = false
+
+alertas_email               = ""
+stock_minimo_alerta         = 5
+alertas_schedule_expression = "rate(1 day)"
