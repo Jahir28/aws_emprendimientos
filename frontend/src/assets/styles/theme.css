@@ -284,6 +284,346 @@
   font-size: 1.35rem;
 }
 
+/* PrimeVue overlays are teleported outside component scope, so their visual shell is global. */
+.p-dialog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.p-dialog {
+  width: min(620px, 92vw);
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #d9e2ef;
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--text-main);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+}
+
+.p-dialog.product-dialog {
+  width: min(620px, 92vw);
+}
+
+.p-confirmdialog {
+  width: min(460px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid #d9e2ef;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 22px 56px rgba(15, 23, 42, 0.24);
+}
+
+.p-confirmdialog .p-dialog-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.p-confirmdialog .p-dialog-title {
+  color: var(--aws-blue);
+  font-size: 1.05rem;
+}
+
+.p-confirmdialog .p-dialog-close-button {
+  width: 34px;
+  height: 34px;
+}
+
+.p-dialog-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.p-dialog-title {
+  color: var(--aws-blue);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.p-dialog-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.p-dialog-close-button,
+.p-dialog-close-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p-dialog-close-button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--aws-blue);
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.p-dialog-close-button:hover {
+  border-color: rgba(255, 153, 0, 0.42);
+  color: #0f172a;
+  background: var(--aws-orange-soft);
+}
+
+.p-dialog-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0;
+  background: #ffffff;
+  color: var(--text-main);
+}
+
+.p-dialog-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.p-dialog.product-dialog .product-form {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.p-dialog.product-dialog .product-form label,
+.p-dialog.product-dialog .product-form label > span {
+  display: grid;
+  gap: 8px;
+}
+
+.p-dialog.product-dialog .product-form label > span {
+  color: var(--aws-blue);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.p-dialog.product-dialog .product-form .input,
+.p-dialog.product-dialog .textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #cfd8e6;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-main);
+}
+
+.p-dialog.product-dialog .product-form .input:focus,
+.p-dialog.product-dialog .textarea:focus {
+  border-color: rgba(255, 153, 0, 0.78);
+  box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.13);
+}
+
+.p-dialog.product-dialog .textarea {
+  min-height: 96px;
+  resize: vertical;
+  padding: 12px 14px;
+  outline: none;
+  font: inherit;
+}
+
+.p-dialog.product-dialog .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 4px -22px -22px;
+  padding: 16px 22px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.p-confirmdialog .p-dialog-content {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 20px;
+  background: #ffffff;
+  color: var(--text-main);
+  line-height: 1.55;
+}
+
+.p-confirmdialog-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  color: var(--warning);
+  background: #fff7e8;
+  font-size: 1.15rem;
+}
+
+.p-confirmdialog-message {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.p-confirmdialog .p-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.p-confirmdialog-accept-button,
+.p-confirmdialog-reject-button,
+.p-confirmdialog .p-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  padding: 0 16px;
+  font-weight: 850;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease;
+}
+
+.p-confirmdialog-accept-button {
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  background: #dc2626;
+  box-shadow: 0 10px 20px rgba(220, 38, 38, 0.18);
+}
+
+.p-confirmdialog-accept-button:hover {
+  border-color: #b91c1c;
+  background: #b91c1c;
+  box-shadow: 0 12px 24px rgba(185, 28, 28, 0.22);
+}
+
+.p-confirmdialog-reject-button {
+  border: 1px solid #d9e2ef;
+  color: var(--aws-blue);
+  background: #f1f5f9;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+}
+
+.p-confirmdialog-reject-button:hover {
+  border-color: #c8d4e3;
+  background: #e8eef6;
+}
+
+.p-toast {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 1400;
+  width: min(400px, calc(100vw - 28px));
+}
+
+.p-toast-message {
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid #d9e2ef;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: var(--text-main);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.2);
+}
+
+.p-toast-message-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.p-toast-message-icon {
+  margin-top: 2px;
+  font-size: 1.1rem;
+}
+
+.p-toast-summary {
+  display: block;
+  color: var(--text-main);
+  font-weight: 900;
+}
+
+.p-toast-detail {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.p-toast-close-button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.p-toast-message-success {
+  border-left: 5px solid var(--success);
+}
+
+.p-toast-message-success .p-toast-message-icon {
+  color: var(--success);
+}
+
+.p-toast-message-error {
+  border-left: 5px solid var(--danger);
+}
+
+.p-toast-message-error .p-toast-message-icon {
+  color: var(--danger);
+}
+
+.p-toast-message-warn {
+  border-left: 5px solid var(--warning);
+}
+
+.p-toast-message-warn .p-toast-message-icon {
+  color: var(--warning);
+}
+
+.p-toast-message-info {
+  border-left: 5px solid var(--info);
+}
+
+.p-toast-message-info .p-toast-message-icon {
+  color: var(--info);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -336,5 +676,63 @@
   .metrics-grid,
   .mini-summary {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .p-dialog-mask {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .p-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .p-dialog-header {
+    padding: 16px 18px;
+  }
+
+  .p-dialog-footer,
+  .p-dialog.product-dialog .modal-actions {
+    padding: 14px 18px;
+  }
+
+  .p-dialog.product-dialog .product-form {
+    gap: 15px;
+    padding: 18px;
+  }
+
+  .p-dialog.product-dialog .modal-actions {
+    margin: 2px -18px -18px;
+  }
+
+  .p-toast {
+    top: 12px;
+    right: 14px;
+    left: 14px;
+    width: auto;
+  }
+
+  .p-confirmdialog {
+    width: calc(100vw - 24px);
+  }
+
+  .p-confirmdialog .p-dialog-header,
+  .p-confirmdialog .p-dialog-content,
+  .p-confirmdialog .p-dialog-footer {
+    padding-inline: 16px;
+  }
+
+  .p-confirmdialog .p-dialog-footer {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+
+  .p-confirmdialog .p-button,
+  .p-confirmdialog-accept-button,
+  .p-confirmdialog-reject-button {
+    width: 100%;
   }
 }

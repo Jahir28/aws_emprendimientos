@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import PrimeVue from 'primevue/config'
+import ConfirmationService from 'primevue/confirmationservice'
+import ToastService from 'primevue/toastservice'
 import 'primeicons/primeicons.css'
 
 import App from './App.vue'
@@ -13,5 +15,7 @@ app.use(router)
 app.use(PrimeVue, {
   ripple: true,
 })
+app.use(ToastService)
+app.use(ConfirmationService)
 
 app.mount('#app')

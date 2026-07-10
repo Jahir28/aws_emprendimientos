@@ -1,38 +1,60 @@
 # aws_emprendimientos
 
-Proyecto universitario para gestionar procesos basicos de emprendimientos mediante una arquitectura serverless en AWS.
+Proyecto universitario para gestionar procesos basicos de pequenos emprendimientos mediante una arquitectura serverless en AWS.
 
-## Descripcion del proyecto
+## Descripcion
 
-`aws_emprendimientos` es una aplicacion web orientada a la administracion de productos, clientes y ventas para pequenos emprendimientos. El proyecto separa el frontend, las funciones backend, la infraestructura como codigo y la automatizacion de CI/CD para facilitar el desarrollo incremental y ordenado.
+`aws_emprendimientos` integra una plataforma web administrativa, microservicios backend en AWS Lambda, persistencia en DynamoDB e infraestructura como codigo con Terraform.
+
+La interfaz visual se presenta como **ControlPyme**, un panel administrativo moderno para gestionar productos, clientes, ventas, reportes y alertas operativas.
 
 ## Objetivo
 
-Construir una solucion academica con practicas modernas de desarrollo cloud, usando servicios administrados de AWS y una estructura preparada para evolucionar hacia despliegues automatizados, pruebas y documentacion tecnica.
+Construir una solucion academica con practicas modernas de desarrollo cloud, usando servicios administrados de AWS, separacion por dominios, pruebas unitarias e infraestructura reproducible.
 
 ## Funcionalidades
 
-- Gestion de productos mediante una Lambda CRUD conectada a DynamoDB.
-- Gestion de clientes mediante una Lambda CRUD conectada a DynamoDB.
+- Panel administrativo web con Vue 3 y Vite.
+- Gestion de productos mediante API Gateway, Lambda y DynamoDB.
+- Gestion de clientes mediante API Gateway, Lambda y DynamoDB.
 - Registro, consulta, listado y eliminacion de ventas.
-- Validacion de cliente y producto antes de registrar una venta.
+- Validacion de cliente y producto antes de registrar ventas.
 - Descuento condicional de stock al registrar ventas.
-- Exposicion de servicios mediante Amazon API Gateway HTTP API.
-- Persistencia de datos en tablas Amazon DynamoDB independientes por dominio.
-- Reportes y alertas se mantienen como modulos previstos para futuras iteraciones.
+- Reportes operativos de resumen, productos mas vendidos y clientes frecuentes.
+- Alertas automaticas de bajo stock mediante EventBridge, Lambda y SNS.
+- Infraestructura definida con Terraform.
 
 ## Arquitectura
 
-La arquitectura esta basada en componentes serverless:
+```text
+Frontend Vue 3
+      |
+Amazon API Gateway HTTP API
+      |
+AWS Lambda Python 3.13
+      |
+Amazon DynamoDB
 
-- El frontend sera desarrollado con Vue 3 y Vite.
-- La API publica se expone mediante Amazon API Gateway HTTP API.
-- La logica de negocio se implementa en funciones AWS Lambda escritas en Python 3.13.
-- Los datos se almacenan en Amazon DynamoDB.
-- Cada microservicio usa su propia tabla DynamoDB y su propio rol IAM de ejecucion.
-- La infraestructura se define con Terraform.
-- La automatizacion del flujo de trabajo se preparara con GitHub Actions.
-- La region AWS objetivo sera `us-west-2`.
+Amazon EventBridge
+      |
+Lambda Alertas
+      |
+DynamoDB Productos
+      |
+Amazon SNS
+      |
+Suscripcion por correo
+```
+
+Componentes principales:
+
+- Frontend: Vue 3, Vite, Vue Router, PrimeVue, Chart.js y Axios.
+- Backend: AWS Lambda con Python 3.13.
+- API: Amazon API Gateway HTTP API.
+- Base de datos: Amazon DynamoDB.
+- Alertas: Amazon EventBridge y Amazon SNS.
+- Infraestructura: Terraform.
+- Region objetivo: `us-west-2`.
 
 ## Microservicios backend
 
@@ -55,20 +77,45 @@ La arquitectura esta basada en componentes serverless:
 - Variables de entorno: `VENTAS_TABLE`, `CLIENTES_TABLE`, `PRODUCTOS_TABLE`.
 - No implementa `PUT`, porque una venta registrada no debe modificarse directamente.
 
-## Tecnologias
+### Reportes
 
-- Vue 3
-- Vite
-- Python
-- AWS Lambda
-- Amazon API Gateway
-- Amazon DynamoDB
-- Terraform
-- GitHub Actions
-- Docker Compose para apoyo futuro en desarrollo local
-- Ubuntu en WSL
+- Rutas: `GET /reportes/resumen`, `GET /reportes/productos-mas-vendidos`, `GET /reportes/clientes-frecuentes`.
+- Variables de entorno: `PRODUCTOS_TABLE`, `CLIENTES_TABLE`, `VENTAS_TABLE`.
+- Acceso de solo lectura a DynamoDB.
 
-## Estructura de carpetas
+### Alertas
+
+- Ejecucion programada mediante EventBridge.
+- Consulta productos con `Scan` paginado.
+- Publica una alerta consolidada en SNS cuando hay productos con bajo stock.
+- Variables de entorno: `PRODUCTOS_TABLE`, `SNS_TOPIC_ARN`, `STOCK_MINIMO`.
+
+## Frontend
+
+El frontend esta en `frontend/` y contiene la base visual de **ControlPyme**:
+
+- Layout administrativo responsive.
+- Sidebar con navegacion principal.
+- Dashboard con metricas y graficas.
+- Vistas de productos, clientes, ventas y reportes con datos simulados.
+- Instancia Axios preparada con `VITE_API_BASE_URL`.
+
+Comandos principales:
+
+```bash
+cd frontend
+npm install
+npm run dev
+npm run build
+```
+
+Archivo de ejemplo de entorno:
+
+```bash
+frontend/.env.example
+```
+
+## Estructura
 
 ```text
 aws_emprendimientos/
@@ -82,21 +129,13 @@ aws_emprendimientos/
 │       └── alertas/
 ├── infrastructure/
 │   ├── terraform/
-│   │   └── modules/
 │   └── scripts/
 ├── docs/
 ├── .github/
 │   └── workflows/
-├── .gitignore
 ├── README.md
 └── docker-compose.yml
 ```
-
-## Estado actual del proyecto
-
-El repositorio ya contiene los microservicios backend de Productos, Clientes y Ventas con pruebas unitarias y acceso a DynamoDB mediante `boto3`. La infraestructura Terraform incluye tablas DynamoDB, funciones Lambda, roles IAM, grupos de logs e integracion con API Gateway HTTP API para esos microservicios.
-
-El frontend con Vue 3 + Vite aun no ha sido inicializado. Los modulos de Reportes y Alertas siguen pendientes para futuras iteraciones.
 
 ## Pruebas locales
 
@@ -111,6 +150,12 @@ python3 -m unittest discover tests
 
 cd ../ventas
 python3 -m unittest discover tests
+
+cd ../reportes
+python3 -m unittest discover tests
+
+cd ../alertas
+python3 -m unittest discover tests
 ```
 
 ## Infraestructura
@@ -120,9 +165,22 @@ Los archivos Terraform se encuentran en `infrastructure/terraform/`.
 Comandos de validacion usados durante el desarrollo:
 
 ```bash
+cd infrastructure/terraform
 terraform fmt -recursive
 terraform validate
 terraform plan -out=tfplan
 ```
 
-No se deben incluir credenciales, claves de AWS ni archivos sensibles en el repositorio.
+Para crear la suscripcion por correo de alertas:
+
+```bash
+terraform plan -var="alertas_email=correo@example.com" -out=tfplan
+```
+
+No ejecutar `terraform apply` sin revisar antes el plan.
+
+## Seguridad
+
+- No incluir credenciales ni claves de AWS en el repositorio.
+- No versionar archivos `.env` reales.
+- Usar variables de entorno, perfiles AWS o mecanismos seguros para credenciales.
