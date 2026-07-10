@@ -109,3 +109,18 @@ output "ventas_api_base_url" {
   description = "URL base del recurso Ventas en el stage dev."
   value       = "${aws_apigatewayv2_stage.dev.invoke_url}/ventas"
 }
+
+output "reportes_lambda_name" {
+  description = "Nombre de la funcion Lambda de Reportes."
+  value       = aws_lambda_function.reportes.function_name
+}
+
+output "reportes_lambda_arn" {
+  description = "ARN de la funcion Lambda de Reportes."
+  value       = aws_lambda_function.reportes.arn
+}
+
+output "reportes_api_base_url" {
+  description = "URL base del recurso Reportes en el stage dev."
+  value       = "${aws_apigatewayv2_stage.dev.invoke_url}/reportes"
+}
