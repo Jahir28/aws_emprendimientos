@@ -59,3 +59,28 @@ output "productos_api_base_url" {
   description = "URL base del recurso Productos en el stage dev."
   value       = "${aws_apigatewayv2_stage.dev.invoke_url}/productos"
 }
+
+output "clientes_table_name" {
+  description = "Nombre de la tabla DynamoDB de Clientes."
+  value       = module.clientes_table.table_name
+}
+
+output "clientes_table_arn" {
+  description = "ARN de la tabla DynamoDB de Clientes."
+  value       = module.clientes_table.table_arn
+}
+
+output "clientes_lambda_name" {
+  description = "Nombre de la funcion Lambda de Clientes."
+  value       = aws_lambda_function.clientes.function_name
+}
+
+output "clientes_lambda_arn" {
+  description = "ARN de la funcion Lambda de Clientes."
+  value       = aws_lambda_function.clientes.arn
+}
+
+output "clientes_api_base_url" {
+  description = "URL base del recurso Clientes en el stage dev."
+  value       = "${aws_apigatewayv2_stage.dev.invoke_url}/clientes"
+}

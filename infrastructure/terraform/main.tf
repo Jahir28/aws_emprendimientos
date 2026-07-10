@@ -18,6 +18,24 @@ module "productos_table" {
   )
 }
 
+# Tabla DynamoDB para el servicio de Clientes.
+module "clientes_table" {
+  source = "./modules/dynamodb"
+
+  table_name = "${local.common_prefix}-clientes"
+  hash_key   = "cliente_id"
+
+  point_in_time_recovery_enabled = var.dynamodb_point_in_time_recovery_enabled
+  deletion_protection_enabled    = var.dynamodb_deletion_protection_enabled
+
+  tags = merge(
+    local.common_tags,
+    {
+      Service = "Clientes"
+    }
+  )
+}
+
 # En futuras iteraciones se agregaran modulos o recursos para:
 # - AWS Lambda en Python para la logica backend.
 # - Amazon API Gateway para exponer la API.

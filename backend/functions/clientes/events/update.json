@@ -1,0 +1,25 @@
+{
+  "version": "2.0",
+  "routeKey": "PUT /clientes/{id}",
+  "rawPath": "/clientes/cli-001",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "content-type": "application/json"
+  },
+  "pathParameters": {
+    "id": "cli-001"
+  },
+  "requestContext": {
+    "http": {
+      "method": "PUT",
+      "path": "/clientes/cli-001",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "local-test"
+    }
+  },
+  "body": "{\"telefono\":\"555-9999\"}",
+  "isBase64Encoded": false
+}
+

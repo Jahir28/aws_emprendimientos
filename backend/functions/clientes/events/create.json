@@ -1,0 +1,22 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /clientes",
+  "rawPath": "/clientes",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/clientes",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "local-test"
+    }
+  },
+  "body": "{\"nombre\":\"Ana Gomez\",\"correo\":\"ana@example.com\",\"telefono\":\"555-0101\",\"direccion\":\"Ciudad de Panama\"}",
+  "isBase64Encoded": false
+}
+

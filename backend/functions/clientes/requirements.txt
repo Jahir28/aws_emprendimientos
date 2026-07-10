@@ -1,0 +1,3 @@
+# No se requieren dependencias externas por ahora.
+# boto3 no se incluye porque AWS Lambda ya lo proporciona en el runtime.
+
