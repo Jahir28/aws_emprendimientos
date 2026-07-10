@@ -44,3 +44,18 @@ output "productos_lambda_table_name" {
   description = "Nombre de la tabla DynamoDB usada por la Lambda de Productos."
   value       = module.productos_table.table_name
 }
+
+output "api_gateway_id" {
+  description = "ID de la HTTP API de Productos."
+  value       = aws_apigatewayv2_api.productos.id
+}
+
+output "api_gateway_endpoint" {
+  description = "Endpoint base de la HTTP API de Productos."
+  value       = aws_apigatewayv2_api.productos.api_endpoint
+}
+
+output "productos_api_base_url" {
+  description = "URL base del recurso Productos en el stage dev."
+  value       = "${aws_apigatewayv2_stage.dev.invoke_url}/productos"
+}

@@ -33,6 +33,27 @@ def _get_method_and_path(event):
     return (method or "").upper(), path or ""
 
 
+def _get_route_key(event, method, path):
+    """Obtiene la ruta declarada por API Gateway o la infiere para REST API."""
+    route_key = event.get("routeKey")
+    if route_key:
+        return route_key
+
+    if path == "/productos":
+        return f"{method} /productos"
+
+    if path.startswith("/productos/"):
+        return f"{method} /productos/{{id}}"
+
+    return f"{method} {path}"
+
+
+def _get_product_id(event):
+    """Extrae el ID publico de la ruta y lo mapea al ID interno del producto."""
+    path_parameters = event.get("pathParameters") or {}
+    return path_parameters.get("id") or path_parameters.get("producto_id")
+
+
 def handler(event, context):
     """Procesa eventos de API Gateway HTTP API y delega al servicio."""
     try:
@@ -40,8 +61,8 @@ def handler(event, context):
         if not method or not path:
             return bad_request("El evento no contiene metodo HTTP o ruta.")
 
-        path_parameters = event.get("pathParameters") or {}
-        product_id = path_parameters.get("producto_id")
+        route_key = _get_route_key(event, method, path)
+        product_id = _get_product_id(event)
 
         body = {}
         if event.get("body"):
@@ -49,19 +70,25 @@ def handler(event, context):
             if not isinstance(body, dict):
                 return bad_request("El cuerpo JSON debe ser un objeto.")
 
-        if method == "GET" and product_id:
-            return get_product(product_id)
-
-        if method == "GET" and path.endswith("/productos"):
+        if route_key == "GET /productos":
             return list_products()
 
-        if method == "POST" and path.endswith("/productos"):
+        if route_key == "POST /productos":
             return create_product(body)
 
-        if method == "PUT" and product_id:
+        if route_key == "GET /productos/{id}":
+            if not product_id:
+                return bad_request("El ID del producto es obligatorio.")
+            return get_product(product_id)
+
+        if route_key == "PUT /productos/{id}":
+            if not product_id:
+                return bad_request("El ID del producto es obligatorio.")
             return update_product(product_id, body)
 
-        if method == "DELETE" and product_id:
+        if route_key == "DELETE /productos/{id}":
+            if not product_id:
+                return bad_request("El ID del producto es obligatorio.")
             return delete_product(product_id)
 
         return not_found("Ruta no encontrada.")

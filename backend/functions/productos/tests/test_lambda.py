@@ -98,11 +98,11 @@ sys.modules["boto3"] = fake_boto3
 from lambda_function import handler  # noqa: E402
 
 
-def _event(method, path, body=None, product_id=None):
+def _event(method, path, body=None, product_id=None, route_key=None):
     """Construye eventos compatibles con API Gateway HTTP API."""
     event = {
         "version": "2.0",
-        "routeKey": f"{method} {path}",
+        "routeKey": route_key or f"{method} {path}",
         "rawPath": path,
         "requestContext": {
             "http": {
@@ -115,7 +115,7 @@ def _event(method, path, body=None, product_id=None):
     }
 
     if product_id:
-        event["pathParameters"] = {"producto_id": product_id}
+        event["pathParameters"] = {"id": product_id}
 
     if body is not None:
         event["body"] = json.dumps(body)
@@ -134,11 +134,19 @@ def _rest_event(method, path, body=None, product_id=None):
     }
 
     if product_id:
-        event["pathParameters"] = {"producto_id": product_id}
+        event["pathParameters"] = {"id": product_id}
 
     if body is not None:
         event["body"] = json.dumps(body)
 
+    return event
+
+
+def _legacy_event(method, path, body=None, product_id=None):
+    """Construye eventos anteriores que usaban producto_id en pathParameters."""
+    event = _event(method, path, body=body, route_key=f"{method} /productos/{{id}}")
+    if product_id:
+        event["pathParameters"] = {"producto_id": product_id}
     return event
 
 
@@ -243,15 +251,77 @@ class TestProductosLambda(unittest.TestCase):
     def test_get_existing_product_by_id(self):
         _seed_product("prod-001")
 
-        response = handler(_event("GET", "/productos/prod-001", product_id="prod-001"), None)
+        response = handler(
+            _event(
+                "GET",
+                "/productos/prod-001",
+                product_id="prod-001",
+                route_key="GET /productos/{id}",
+            ),
+            None,
+        )
         body = json.loads(response["body"])
 
         self.assertEqual(response["statusCode"], 200)
         self.assertEqual(body["data"]["producto_id"], "prod-001")
         self.assertEqual(body["data"]["precio"], 12.5)
 
+    def test_get_existing_product_by_id_http_api_v2(self):
+        _seed_product("prod-001")
+        event = {
+            "version": "2.0",
+            "routeKey": "GET /productos/{id}",
+            "rawPath": "/productos/prod-001",
+            "requestContext": {
+                "http": {
+                    "method": "GET",
+                }
+            },
+            "pathParameters": {
+                "id": "prod-001",
+            },
+        }
+
+        response = handler(event, None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"]["producto_id"], "prod-001")
+
+    def test_get_existing_product_supports_legacy_producto_id_parameter(self):
+        _seed_product("prod-001")
+
+        response = handler(_legacy_event("GET", "/productos/prod-001", product_id="prod-001"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"]["producto_id"], "prod-001")
+
     def test_get_missing_product_returns_not_found(self):
-        response = handler(_event("GET", "/productos/no-existe", product_id="no-existe"), None)
+        response = handler(
+            _event(
+                "GET",
+                "/productos/no-existe",
+                product_id="no-existe",
+                route_key="GET /productos/{id}",
+            ),
+            None,
+        )
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 404)
+        self.assertEqual(body["message"], "Producto no encontrado.")
+
+    def test_get_missing_product_http_api_v2_returns_not_found(self):
+        response = handler(
+            _event(
+                "GET",
+                "/productos/no-existe",
+                product_id="no-existe",
+                route_key="GET /productos/{id}",
+            ),
+            None,
+        )
         body = json.loads(response["body"])
 
         self.assertEqual(response["statusCode"], 404)
@@ -265,7 +335,10 @@ class TestProductosLambda(unittest.TestCase):
             "stock": 8,
         }
 
-        response = handler(_event("PUT", "/productos/prod-001", payload, "prod-001"), None)
+        response = handler(
+            _event("PUT", "/productos/prod-001", payload, "prod-001", "PUT /productos/{id}"),
+            None,
+        )
         body = json.loads(response["body"])
 
         self.assertEqual(response["statusCode"], 200)
@@ -274,10 +347,27 @@ class TestProductosLambda(unittest.TestCase):
         self.assertEqual(body["data"]["precio"], 15)
         self.assertEqual(body["data"]["stock"], 8)
 
+    def test_put_update_product_http_api_v2(self):
+        _seed_product("prod-001")
+        payload = {"nombre": "Cafe premium"}
+
+        response = handler(
+            _event("PUT", "/productos/prod-001", payload, "prod-001", "PUT /productos/{id}"),
+            None,
+        )
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(body["data"]["producto_id"], "prod-001")
+        self.assertEqual(body["data"]["nombre"], "Cafe premium")
+
     def test_put_accepts_valid_partial_update(self):
         _seed_product("prod-001")
 
-        response = handler(_event("PUT", "/productos/prod-001", {"stock": 3}, "prod-001"), None)
+        response = handler(
+            _event("PUT", "/productos/prod-001", {"stock": 3}, "prod-001", "PUT /productos/{id}"),
+            None,
+        )
         body = json.loads(response["body"])
 
         self.assertEqual(response["statusCode"], 200)
@@ -288,12 +378,32 @@ class TestProductosLambda(unittest.TestCase):
     def test_delete_product(self):
         _seed_product("prod-001")
 
-        response = handler(_event("DELETE", "/productos/prod-001", product_id="prod-001"), None)
+        response = handler(
+            _event("DELETE", "/productos/prod-001", product_id="prod-001", route_key="DELETE /productos/{id}"),
+            None,
+        )
         body = json.loads(response["body"])
 
         self.assertEqual(response["statusCode"], 200)
         self.assertTrue(body["data"]["deleted"])
         self.assertNotIn("prod-001", fake_resource.table.items)
+
+    def test_delete_product_http_api_v2(self):
+        _seed_product("prod-001")
+
+        response = handler(
+            _event("DELETE", "/productos/prod-001", product_id="prod-001", route_key="DELETE /productos/{id}"),
+            None,
+        )
+        body = json.loads(response["body"])
+
+        self.assertEqual(response["statusCode"], 200)
+        self.assertTrue(body["data"]["deleted"])
+
+    def test_missing_id_for_id_route_returns_bad_request(self):
+        response = handler(_event("GET", "/productos/prod-001", route_key="GET /productos/{id}"), None)
+
+        self.assertEqual(response["statusCode"], 400)
 
     def test_post_rejects_missing_name(self):
         response = handler(_event("POST", "/productos", {"precio": 4.75}), None)
@@ -343,6 +453,11 @@ class TestProductosLambda(unittest.TestCase):
         response = handler(event, None)
 
         self.assertEqual(response["statusCode"], 400)
+
+    def test_unknown_route_http_api_v2_returns_not_found(self):
+        response = handler(_event("GET", "/desconocida", route_key="GET /desconocida"), None)
+
+        self.assertEqual(response["statusCode"], 404)
 
     def test_dynamodb_internal_error_returns_500(self):
         fake_resource.table.fail_next()
