@@ -1,0 +1,22 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /ventas",
+  "rawPath": "/ventas",
+  "rawQueryString": "",
+  "headers": {
+    "accept": "application/json",
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/ventas",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "local-test"
+    }
+  },
+  "body": "{\"cliente_id\":\"cli-001\",\"producto_id\":\"prod-001\",\"cantidad\":2}",
+  "isBase64Encoded": false
+}
+
