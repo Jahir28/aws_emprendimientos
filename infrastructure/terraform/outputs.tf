@@ -144,3 +144,28 @@ output "alertas_email_subscription_status" {
   description = "Estado informativo de la suscripcion por correo a las alertas."
   value       = var.alertas_email != "" ? "Pendiente de confirmacion en el correo configurado." : "No configurada; alertas_email esta vacio."
 }
+
+output "frontend_bucket_name" {
+  description = "Nombre del bucket S3 privado del frontend."
+  value       = aws_s3_bucket.frontend.bucket
+}
+
+output "frontend_bucket_arn" {
+  description = "ARN del bucket S3 privado del frontend."
+  value       = aws_s3_bucket.frontend.arn
+}
+
+output "frontend_cloudfront_distribution_id" {
+  description = "ID de la distribucion CloudFront del frontend."
+  value       = aws_cloudfront_distribution.frontend.id
+}
+
+output "frontend_cloudfront_domain_name" {
+  description = "Dominio de CloudFront para el frontend."
+  value       = aws_cloudfront_distribution.frontend.domain_name
+}
+
+output "frontend_public_url" {
+  description = "URL publica HTTPS del frontend."
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}

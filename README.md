@@ -29,6 +29,12 @@ Construir una solucion academica con practicas modernas de desarrollo cloud, usa
 ## Arquitectura
 
 ```text
+Usuario
+      |
+Amazon CloudFront
+      |
+Amazon S3 privado
+      |
 Frontend Vue 3
       |
 Amazon API Gateway HTTP API
@@ -54,6 +60,7 @@ Componentes principales:
 - Backend: AWS Lambda con Python 3.13.
 - API: Amazon API Gateway HTTP API.
 - Base de datos: Amazon DynamoDB.
+- Hosting frontend: Amazon S3 privado y Amazon CloudFront con Origin Access Control.
 - Alertas: Amazon EventBridge y Amazon SNS.
 - Infraestructura: Terraform.
 - Region objetivo: `us-west-2`.
@@ -129,7 +136,7 @@ Metricas principales mostradas en Dashboard y Reportes:
 Variable de entorno del frontend:
 
 ```bash
-VITE_API_BASE_URL=https://example.execute-api.us-west-2.amazonaws.com/dev
+VITE_API_BASE_URL=https://0i782227yj.execute-api.us-west-2.amazonaws.com/dev
 ```
 
 Comandos principales:
@@ -147,6 +154,66 @@ Archivo de ejemplo de entorno:
 frontend/.env.example
 ```
 
+### Despliegue en S3 + CloudFront
+
+La infraestructura Terraform incluye un bucket S3 privado para el frontend, una distribucion CloudFront con Origin Access Control y respuestas SPA para recargar rutas como `/productos`, `/clientes`, `/ventas` y `/reportes`.
+
+Antes de aplicar infraestructura, crear `infrastructure/terraform/terraform.tfvars` local a partir de `terraform.tfvars.example` y conservar `alertas_email` con el correo real ya usado por SNS. Este archivo esta ignorado por Git.
+
+Validar y generar el plan del frontend:
+
+```bash
+cd infrastructure/terraform
+terraform fmt -recursive
+terraform validate
+terraform plan -out=frontend.tfplan
+```
+
+Aplicar solo despues de revisar el plan:
+
+```bash
+terraform apply "frontend.tfplan"
+```
+
+Despues de crear la infraestructura, publicar el build desde la raiz del repositorio:
+
+```bash
+cd frontend
+npm run build
+```
+
+Estrategia de cache recomendada:
+
+```bash
+aws s3 sync dist/assets/ \
+  "s3://$(cd ../infrastructure/terraform && terraform output -raw frontend_bucket_name)/assets/" \
+  --delete \
+  --cache-control "public,max-age=31536000,immutable"
+
+aws s3 cp dist/index.html \
+  "s3://$(cd ../infrastructure/terraform && terraform output -raw frontend_bucket_name)/index.html" \
+  --cache-control "no-cache"
+```
+
+Para sincronizar el resto de archivos estaticos sin sobrescribir el cache de `assets/` ni `index.html`:
+
+```bash
+aws s3 sync dist/ \
+  "s3://$(cd ../infrastructure/terraform && terraform output -raw frontend_bucket_name)" \
+  --delete \
+  --exclude "assets/*" \
+  --exclude "index.html" \
+  --cache-control "public,max-age=86400"
+```
+
+Invalidar CloudFront despues de publicar:
+
+```bash
+aws cloudfront create-invalidation \
+  --distribution-id "$(cd ../infrastructure/terraform && terraform output -raw frontend_cloudfront_distribution_id)" \
+  --paths "/*"
+```
+
 ## Estructura
 
 ```text
@@ -160,11 +227,7 @@ aws_emprendimientos/
 │       ├── reportes/
 │       └── alertas/
 ├── infrastructure/
-│   ├── terraform/
-│   └── scripts/
-├── docs/
-├── .github/
-│   └── workflows/
+│   └── terraform/
 ├── README.md
 └── docker-compose.yml
 ```
@@ -194,24 +257,32 @@ python3 -m unittest discover tests
 
 Los archivos Terraform se encuentran en `infrastructure/terraform/`.
 
-Comandos de validacion usados durante el desarrollo:
+Archivos principales:
+
+- `main.tf`: tablas DynamoDB.
+- `lambda_*.tf`: Lambdas, roles, politicas y logs.
+- `api_*.tf`: API Gateway e integraciones.
+- `alertas.tf`: SNS, EventBridge y Lambda de alertas.
+- `frontend.tf`: S3 privado, CloudFront y Origin Access Control.
+- `outputs.tf`: salidas de API, Lambdas, tablas y frontend.
+- `terraform.tfvars.example`: plantilla de variables locales.
+
+Comandos de validacion:
 
 ```bash
 cd infrastructure/terraform
 terraform fmt -recursive
 terraform validate
-terraform plan -out=tfplan
+terraform plan
 ```
 
-Para crear la suscripcion por correo de alertas:
+Para preparar el despliegue del frontend:
 
 ```bash
-terraform plan -var="alertas_email=correo@example.com" -out=tfplan
+terraform plan -out=frontend.tfplan
 ```
 
-Para conservar la suscripcion de alertas ya configurada durante planes posteriores, usar la misma variable `alertas_email`.
-
-No ejecutar `terraform apply` sin revisar antes el plan.
+No ejecutar `terraform apply` sin revisar antes el plan. Mantener `terraform.tfvars`, `*.tfplan` y archivos de estado fuera de Git.
 
 ## Seguridad
 

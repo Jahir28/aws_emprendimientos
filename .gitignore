@@ -51,6 +51,7 @@ override.tf.json
 *.tfvars.json
 infrastructure/terraform/build/
 infrastructure/terraform/tfplan
+infrastructure/terraform/tfplan-iam
 *.tfplan
 
 # Logs
