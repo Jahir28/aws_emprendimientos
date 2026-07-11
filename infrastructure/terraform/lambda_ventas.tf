@@ -82,7 +82,8 @@ data "aws_iam_policy_document" "ventas_lambda" {
       "dynamodb:Scan",
       "dynamodb:GetItem",
       "dynamodb:PutItem",
-      "dynamodb:DeleteItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:TransactWriteItems",
     ]
 
     resources = [
@@ -110,6 +111,7 @@ data "aws_iam_policy_document" "ventas_lambda" {
     actions = [
       "dynamodb:GetItem",
       "dynamodb:UpdateItem",
+      "dynamodb:TransactWriteItems",
     ]
 
     resources = [

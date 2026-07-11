@@ -4,7 +4,7 @@ import json
 import logging
 
 from responses import bad_request, internal_error, not_found
-from service import create_sale, delete_sale, get_sale, list_sales
+from service import cancel_sale, create_sale, delete_sale, get_sale, list_sales
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -35,6 +35,9 @@ def _get_route_key(event, method, path):
 
     if path == "/ventas":
         return f"{method} /ventas"
+
+    if path.startswith("/ventas/") and path.endswith("/anular"):
+        return f"{method} /ventas/{{id}}/anular"
 
     if path.startswith("/ventas/"):
         return f"{method} /ventas/{{id}}"
@@ -75,6 +78,11 @@ def handler(event, context):
                 return bad_request("El ID de la venta es obligatorio.")
             return get_sale(sale_id)
 
+        if route_key == "POST /ventas/{id}/anular":
+            if not sale_id:
+                return bad_request("El ID de la venta es obligatorio.")
+            return cancel_sale(sale_id)
+
         if route_key == "DELETE /ventas/{id}":
             if not sale_id:
                 return bad_request("El ID de la venta es obligatorio.")
@@ -86,4 +94,3 @@ def handler(event, context):
     except Exception:
         logger.exception("Error inesperado al procesar la solicitud de Ventas.")
         return internal_error("Ocurrio un error interno al procesar la solicitud.")
-

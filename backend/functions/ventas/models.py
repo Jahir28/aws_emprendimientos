@@ -15,8 +15,11 @@ class Sale:
     total: object
     cliente_nombre: str
     producto_nombre: str
+    estado: str
     fecha: str
     created_at: str
+    updated_at: str
+    anulada_at: str = ""
 
     @classmethod
     def from_dict(cls, data):
@@ -30,11 +33,13 @@ class Sale:
             total=data.get("total", 0),
             cliente_nombre=data.get("cliente_nombre", ""),
             producto_nombre=data.get("producto_nombre", ""),
+            estado=data.get("estado", "completada"),
             fecha=data.get("fecha", ""),
             created_at=data.get("created_at", ""),
+            updated_at=data.get("updated_at", ""),
+            anulada_at=data.get("anulada_at", ""),
         )
 
     def to_dict(self):
         """Convierte la venta a un diccionario serializable."""
         return asdict(self)
-

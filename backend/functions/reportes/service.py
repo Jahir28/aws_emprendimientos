@@ -20,6 +20,9 @@ productos_table = dynamodb.Table(PRODUCTOS_TABLE)
 clientes_table = dynamodb.Table(CLIENTES_TABLE)
 ventas_table = dynamodb.Table(VENTAS_TABLE)
 
+COMPLETED_STATUS = "completada"
+CANCELED_STATUS = "anulada"
+
 
 def _scan_all(table):
     """Lee todos los registros de una tabla usando paginacion de Scan."""
@@ -62,6 +65,11 @@ def _to_json_compatible(value):
     return value
 
 
+def _is_completed_sale(venta):
+    """Ventas antiguas sin estado se interpretan como completadas."""
+    return venta.get("estado", COMPLETED_STATUS) != CANCELED_STATUS
+
+
 def get_summary_report():
     """Genera un resumen general de productos, clientes y ventas."""
     try:
@@ -69,8 +77,14 @@ def get_summary_report():
         clientes = _scan_all(clientes_table)
         ventas = _scan_all(ventas_table)
 
-        ingresos_totales = sum((_to_decimal(venta.get("total")) for venta in ventas), Decimal("0"))
-        unidades_vendidas = sum(_to_int(venta.get("cantidad")) for venta in ventas)
+        ventas_completadas = [venta for venta in ventas if _is_completed_sale(venta)]
+        ventas_anuladas = sum(1 for venta in ventas if venta.get("estado") == CANCELED_STATUS)
+
+        ingresos_totales = sum(
+            (_to_decimal(venta.get("total")) for venta in ventas_completadas),
+            Decimal("0"),
+        )
+        unidades_vendidas = sum(_to_int(venta.get("cantidad")) for venta in ventas_completadas)
         productos_bajo_stock = sum(1 for producto in productos if _to_int(producto.get("stock")) <= 5)
         valor_inventario = sum(
             _to_decimal(producto.get("precio")) * _to_decimal(producto.get("stock"))
@@ -80,7 +94,8 @@ def get_summary_report():
         report = {
             "total_productos": len(productos),
             "total_clientes": len(clientes),
-            "total_ventas": len(ventas),
+            "total_ventas": len(ventas_completadas),
+            "ventas_anuladas": ventas_anuladas,
             "ingresos_totales": ingresos_totales,
             "unidades_vendidas": unidades_vendidas,
             "productos_bajo_stock": productos_bajo_stock,
@@ -96,7 +111,7 @@ def get_summary_report():
 def get_top_products_report():
     """Genera el reporte de productos mas vendidos."""
     try:
-        ventas = _scan_all(ventas_table)
+        ventas = [venta for venta in _scan_all(ventas_table) if _is_completed_sale(venta)]
         grouped = {}
 
         for venta in ventas:
@@ -131,7 +146,7 @@ def get_top_products_report():
 def get_frequent_clients_report():
     """Genera el reporte de clientes frecuentes."""
     try:
-        ventas = _scan_all(ventas_table)
+        ventas = [venta for venta in _scan_all(ventas_table) if _is_completed_sale(venta)]
         grouped = {}
 
         for venta in ventas:
@@ -161,4 +176,3 @@ def get_frequent_clients_report():
     except Exception:
         logger.exception("Error al generar reporte de clientes frecuentes.")
         return internal_error("Ocurrio un error interno al procesar la solicitud.")
-

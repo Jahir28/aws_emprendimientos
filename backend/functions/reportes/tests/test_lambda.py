@@ -167,6 +167,7 @@ class TestReportesLambda(unittest.TestCase):
                 "total_productos": 0,
                 "total_clientes": 0,
                 "total_ventas": 0,
+                "ventas_anuladas": 0,
                 "ingresos_totales": 0,
                 "unidades_vendidas": 0,
                 "productos_bajo_stock": 0,
@@ -189,6 +190,21 @@ class TestReportesLambda(unittest.TestCase):
         body = json.loads(response["body"])
 
         self.assertEqual(body["data"]["unidades_vendidas"], 6)
+
+    def test_summary_excludes_canceled_sales_and_counts_them(self):
+        _ventas_table().items = [
+            {"venta_id": "ven-1", "cantidad": 2, "total": Decimal("20"), "estado": "completada"},
+            {"venta_id": "ven-2", "cantidad": 4, "total": Decimal("40"), "estado": "anulada"},
+            {"venta_id": "ven-3", "cantidad": 1, "total": Decimal("10")},
+        ]
+
+        response = handler(_event("GET", "/reportes/resumen"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(body["data"]["total_ventas"], 2)
+        self.assertEqual(body["data"]["ventas_anuladas"], 1)
+        self.assertEqual(body["data"]["ingresos_totales"], 30)
+        self.assertEqual(body["data"]["unidades_vendidas"], 3)
 
     def test_summary_calculates_low_stock_products(self):
         _seed_summary_data()
@@ -220,6 +236,32 @@ class TestReportesLambda(unittest.TestCase):
         self.assertEqual(body["data"][0]["producto_id"], "prod-1")
         self.assertEqual(body["data"][0]["cantidad_vendida"], 5)
         self.assertEqual(body["data"][0]["ingresos"], 50)
+
+    def test_top_products_excludes_canceled_sales(self):
+        _ventas_table().items = [
+            {
+                "producto_id": "prod-1",
+                "producto_nombre": "Cafe",
+                "cantidad": 2,
+                "total": Decimal("20"),
+                "estado": "completada",
+            },
+            {
+                "producto_id": "prod-1",
+                "producto_nombre": "Cafe",
+                "cantidad": 10,
+                "total": Decimal("100"),
+                "estado": "anulada",
+            },
+            {"producto_id": "prod-2", "producto_nombre": "Te", "cantidad": 3, "total": Decimal("15")},
+        ]
+
+        response = handler(_event("GET", "/reportes/productos-mas-vendidos"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(body["data"][0]["producto_id"], "prod-2")
+        self.assertEqual(body["data"][1]["producto_id"], "prod-1")
+        self.assertEqual(body["data"][1]["cantidad_vendida"], 2)
 
     def test_top_products_descending_order(self):
         _ventas_table().items = [
@@ -263,6 +305,30 @@ class TestReportesLambda(unittest.TestCase):
         self.assertEqual(body["data"][0]["cliente_id"], "cli-1")
         self.assertEqual(body["data"][0]["cantidad_ventas"], 2)
         self.assertEqual(body["data"][0]["total_gastado"], 50)
+
+    def test_frequent_clients_excludes_canceled_sales(self):
+        _ventas_table().items = [
+            {
+                "cliente_id": "cli-1",
+                "cliente_nombre": "Ana",
+                "total": Decimal("20"),
+                "estado": "completada",
+            },
+            {
+                "cliente_id": "cli-1",
+                "cliente_nombre": "Ana",
+                "total": Decimal("90"),
+                "estado": "anulada",
+            },
+            {"cliente_id": "cli-2", "cliente_nombre": "Luis", "total": Decimal("30")},
+        ]
+
+        response = handler(_event("GET", "/reportes/clientes-frecuentes"), None)
+        body = json.loads(response["body"])
+
+        self.assertEqual(body["data"][0]["cliente_id"], "cli-2")
+        self.assertEqual(body["data"][1]["cliente_id"], "cli-1")
+        self.assertEqual(body["data"][1]["total_gastado"], 20)
 
     def test_frequent_clients_descending_order(self):
         _ventas_table().items = [
@@ -356,4 +422,3 @@ class TestReportesLambda(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

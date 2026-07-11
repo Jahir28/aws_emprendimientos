@@ -17,9 +17,10 @@ Construir una solucion academica con practicas modernas de desarrollo cloud, usa
 - Panel administrativo web con Vue 3 y Vite.
 - Gestion de productos mediante API Gateway, Lambda y DynamoDB.
 - Gestion de clientes mediante API Gateway, Lambda y DynamoDB.
-- Registro, consulta, listado y eliminacion de ventas.
+- Registro, consulta, listado y anulacion segura de ventas.
 - Validacion de cliente y producto antes de registrar ventas.
-- Descuento condicional de stock al registrar ventas.
+- Descuento transaccional de stock al registrar ventas.
+- Devolucion transaccional de stock al anular ventas.
 - Reportes operativos de resumen, productos mas vendidos y clientes frecuentes.
 - Alertas automaticas de bajo stock mediante EventBridge, Lambda y SNS.
 - Infraestructura definida con Terraform.
@@ -72,16 +73,24 @@ Componentes principales:
 
 ### Ventas
 
-- Rutas: `GET /ventas`, `POST /ventas`, `GET /ventas/{id}`, `DELETE /ventas/{id}`.
+- Rutas: `GET /ventas`, `POST /ventas`, `GET /ventas/{id}`, `POST /ventas/{id}/anular`.
 - Tabla DynamoDB: `aws-emprendimientos-dev-ventas`.
 - Variables de entorno: `VENTAS_TABLE`, `CLIENTES_TABLE`, `PRODUCTOS_TABLE`.
 - No implementa `PUT`, porque una venta registrada no debe modificarse directamente.
+- No expone eliminacion fisica desde la interfaz.
+- Las ventas nuevas se guardan con `estado = "completada"`.
+- Las ventas antiguas sin campo `estado` se interpretan como completadas.
+- La anulacion cambia `estado` a `"anulada"`, registra `anulada_at` y devuelve el stock al producto.
+- La creacion y la anulacion usan operaciones transaccionales de DynamoDB para evitar cambios parciales entre Ventas y Productos.
 
 ### Reportes
 
 - Rutas: `GET /reportes/resumen`, `GET /reportes/productos-mas-vendidos`, `GET /reportes/clientes-frecuentes`.
 - Variables de entorno: `PRODUCTOS_TABLE`, `CLIENTES_TABLE`, `VENTAS_TABLE`.
 - Acceso de solo lectura a DynamoDB.
+- Los ingresos, ventas activas, ticket promedio, productos mas vendidos y clientes frecuentes consideran solo ventas completadas.
+- Las ventas anuladas no suman ingresos y pueden reportarse como metrica separada.
+- Las ventas antiguas sin `estado` se tratan como completadas para mantener compatibilidad historica.
 
 ### Alertas
 
@@ -96,9 +105,18 @@ El frontend esta en `frontend/` y contiene la base visual de **ControlPyme**:
 
 - Layout administrativo responsive.
 - Sidebar con navegacion principal.
-- Dashboard con metricas y graficas.
-- Vistas de productos, clientes, ventas y reportes con datos simulados.
-- Instancia Axios preparada con `VITE_API_BASE_URL`.
+- Dashboard con metricas y graficas de presentacion.
+- Productos integrado con API real.
+- Clientes integrado con API real.
+- Ventas integrado con API real, incluyendo registro y anulacion segura.
+- Reportes visuales preparados para consumo de datos operativos.
+- Instancia Axios configurada mediante `VITE_API_BASE_URL`.
+
+Variable de entorno del frontend:
+
+```bash
+VITE_API_BASE_URL=https://example.execute-api.us-west-2.amazonaws.com/dev
+```
 
 Comandos principales:
 
@@ -176,6 +194,8 @@ Para crear la suscripcion por correo de alertas:
 ```bash
 terraform plan -var="alertas_email=correo@example.com" -out=tfplan
 ```
+
+Para conservar la suscripcion de alertas ya configurada durante planes posteriores, usar la misma variable `alertas_email`.
 
 No ejecutar `terraform apply` sin revisar antes el plan.
 

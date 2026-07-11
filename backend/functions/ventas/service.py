@@ -9,7 +9,7 @@ from uuid import uuid4
 import boto3
 
 from models import Sale
-from responses import bad_request, created, internal_error, not_found, success
+from responses import bad_request, conflict, created, internal_error, not_found, success
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -19,11 +19,23 @@ CLIENTES_TABLE = os.environ["CLIENTES_TABLE"]
 PRODUCTOS_TABLE = os.environ["PRODUCTOS_TABLE"]
 
 dynamodb = boto3.resource("dynamodb")
+ddb_client = boto3.client("dynamodb")
 ventas_table = dynamodb.Table(VENTAS_TABLE)
 clientes_table = dynamodb.Table(CLIENTES_TABLE)
 productos_table = dynamodb.Table(PRODUCTOS_TABLE)
 
-READ_ONLY_FIELDS = {"venta_id", "total", "precio_unitario", "fecha", "created_at"}
+READ_ONLY_FIELDS = {
+    "venta_id",
+    "total",
+    "precio_unitario",
+    "estado",
+    "fecha",
+    "created_at",
+    "updated_at",
+    "anulada_at",
+}
+COMPLETED_STATUS = "completada"
+CANCELED_STATUS = "anulada"
 
 
 def _current_timestamp():
@@ -103,6 +115,30 @@ def _to_json_compatible(value):
     return value
 
 
+def _serialize_value(value):
+    """Convierte valores Python a AttributeValue de DynamoDB."""
+    if isinstance(value, bool):
+        return {"BOOL": value}
+
+    if isinstance(value, (int, Decimal)):
+        return {"N": str(value)}
+
+    if isinstance(value, float):
+        return {"N": str(Decimal(str(value)))}
+
+    return {"S": str(value)}
+
+
+def _serialize_item(item):
+    """Convierte un diccionario plano a formato AttributeValue."""
+    return {key: _serialize_value(value) for key, value in item.items()}
+
+
+def _get_error_code(exc):
+    """Extrae codigo de error compatible con ClientError o mocks."""
+    return getattr(exc, "response", {}).get("Error", {}).get("Code")
+
+
 def _get_cliente(cliente_id):
     """Obtiene un cliente desde DynamoDB."""
     response = clientes_table.get_item(Key={"cliente_id": cliente_id})
@@ -115,25 +151,62 @@ def _get_producto(producto_id):
     return response.get("Item")
 
 
-def _discount_stock(producto_id, cantidad):
-    """Descuenta stock con condicion para evitar valores negativos."""
-    return productos_table.update_item(
-        Key={"producto_id": producto_id},
-        UpdateExpression="SET #stock = #stock - :cantidad",
-        ExpressionAttributeNames={"#stock": "stock"},
-        ExpressionAttributeValues={":cantidad": cantidad},
-        ConditionExpression="attribute_exists(producto_id) AND #stock >= :cantidad",
-        ReturnValues="ALL_NEW",
+def _transact_create_sale(item, cantidad):
+    """Guarda la venta y descuenta stock atomica y condicionalmente."""
+    ddb_client.transact_write_items(
+        TransactItems=[
+            {
+                "Update": {
+                    "TableName": PRODUCTOS_TABLE,
+                    "Key": {"producto_id": {"S": item["producto_id"]}},
+                    "UpdateExpression": "SET #stock = #stock - :cantidad",
+                    "ExpressionAttributeNames": {"#stock": "stock"},
+                    "ExpressionAttributeValues": {":cantidad": {"N": str(cantidad)}},
+                    "ConditionExpression": "attribute_exists(producto_id) AND #stock >= :cantidad",
+                }
+            },
+            {
+                "Put": {
+                    "TableName": VENTAS_TABLE,
+                    "Item": _serialize_item(item),
+                    "ConditionExpression": "attribute_not_exists(venta_id)",
+                }
+            },
+        ]
     )
 
 
-def _restore_stock(producto_id, cantidad):
-    """Intenta restaurar stock si falla el guardado de la venta."""
-    productos_table.update_item(
-        Key={"producto_id": producto_id},
-        UpdateExpression="SET #stock = #stock + :cantidad",
-        ExpressionAttributeNames={"#stock": "stock"},
-        ExpressionAttributeValues={":cantidad": cantidad},
+def _transact_cancel_sale(sale, timestamp):
+    """Anula la venta y devuelve stock atomica y condicionalmente."""
+    ddb_client.transact_write_items(
+        TransactItems=[
+            {
+                "Update": {
+                    "TableName": VENTAS_TABLE,
+                    "Key": {"venta_id": {"S": sale["venta_id"]}},
+                    "UpdateExpression": "SET #estado = :anulada, anulada_at = :timestamp, updated_at = :timestamp",
+                    "ExpressionAttributeNames": {"#estado": "estado"},
+                    "ExpressionAttributeValues": {
+                        ":anulada": {"S": CANCELED_STATUS},
+                        ":timestamp": {"S": timestamp},
+                    },
+                    "ConditionExpression": (
+                        "attribute_exists(venta_id) AND "
+                        "(attribute_not_exists(#estado) OR #estado <> :anulada)"
+                    ),
+                }
+            },
+            {
+                "Update": {
+                    "TableName": PRODUCTOS_TABLE,
+                    "Key": {"producto_id": {"S": sale["producto_id"]}},
+                    "UpdateExpression": "SET #stock = #stock + :cantidad",
+                    "ExpressionAttributeNames": {"#stock": "stock"},
+                    "ExpressionAttributeValues": {":cantidad": {"N": str(sale["cantidad"])}},
+                    "ConditionExpression": "attribute_exists(producto_id)",
+                }
+            },
+        ]
     )
 
 
@@ -159,14 +232,6 @@ def create_sale(payload):
         precio_unitario = _to_decimal(producto.get("precio", 0))
         total = precio_unitario * Decimal(cantidad)
 
-        try:
-            _discount_stock(producto_id, cantidad)
-        except Exception as exc:
-            error_code = getattr(exc, "response", {}).get("Error", {}).get("Code")
-            if error_code == "ConditionalCheckFailedException":
-                return bad_request("Stock insuficiente para registrar la venta.")
-            raise
-
         timestamp = _current_timestamp()
         sale = Sale(
             venta_id=str(uuid4()),
@@ -177,19 +242,21 @@ def create_sale(payload):
             total=total,
             cliente_nombre=cliente.get("nombre", ""),
             producto_nombre=producto.get("nombre", ""),
+            estado=COMPLETED_STATUS,
             fecha=timestamp,
             created_at=timestamp,
+            updated_at=timestamp,
         )
         item = sale.to_dict()
+        item.pop("anulada_at", None)
 
         try:
-            ventas_table.put_item(Item=item)
-        except Exception:
-            try:
-                _restore_stock(producto_id, cantidad)
-            except Exception:
-                logger.exception("No se pudo restaurar el stock despues de fallar la venta.")
-            logger.exception("Error al guardar venta en DynamoDB.")
+            _transact_create_sale(item, cantidad)
+        except Exception as exc:
+            if _get_error_code(exc) == "TransactionCanceledException":
+                return bad_request("Stock insuficiente para registrar la venta.")
+
+            logger.exception("Error al guardar venta y descontar stock en DynamoDB.")
             return internal_error("Ocurrio un error interno al procesar la solicitud.")
 
         return created(_to_json_compatible(item), "Venta creada correctamente.")
@@ -230,20 +297,50 @@ def list_sales():
 
 
 def delete_sale(sale_id):
-    """Elimina una venta en DynamoDB."""
+    """Deshabilita eliminacion fisica de ventas desde la API."""
+    return bad_request("Las ventas deben anularse mediante POST /ventas/{id}/anular.")
+
+
+def cancel_sale(sale_id):
+    """Anula una venta y devuelve stock al producto de forma atomica."""
     try:
-        response = ventas_table.delete_item(
-            Key={"venta_id": sale_id},
-            ReturnValues="ALL_OLD",
-        )
-        if not response.get("Attributes"):
+        response = ventas_table.get_item(Key={"venta_id": sale_id})
+        sale = response.get("Item")
+        if not sale:
             return not_found("Venta no encontrada.")
 
+        if sale.get("estado", COMPLETED_STATUS) == CANCELED_STATUS:
+            return conflict("La venta ya fue anulada.")
+
+        cantidad, error = _parse_positive_integer(sale.get("cantidad"), "cantidad")
+        if error:
+            return bad_request("La cantidad original de la venta no es valida.")
+        sale["cantidad"] = cantidad
+
+        producto_id = sale.get("producto_id")
+        if not producto_id:
+            return bad_request("La venta no contiene producto asociado.")
+
+        producto = _get_producto(producto_id)
+        if not producto:
+            return not_found("Producto no encontrado.")
+
+        timestamp = _current_timestamp()
+        try:
+            _transact_cancel_sale(sale, timestamp)
+        except Exception as exc:
+            if _get_error_code(exc) == "TransactionCanceledException":
+                return conflict("No se pudo anular la venta por su estado actual.")
+            raise
+
         return success(
-            {"venta_id": sale_id, "deleted": True},
-            "Venta eliminada correctamente.",
+            {
+                "venta_id": sale_id,
+                "estado": CANCELED_STATUS,
+                "stock_devuelto": cantidad,
+            },
+            "Venta anulada correctamente.",
         )
     except Exception:
-        logger.exception("Error al eliminar venta en DynamoDB.")
+        logger.exception("Error al anular venta en DynamoDB.")
         return internal_error("Ocurrio un error interno al procesar la solicitud.")
-

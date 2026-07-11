@@ -37,7 +37,11 @@ def not_found(message="Recurso no encontrado."):
     return _response(404, {"message": message})
 
 
+def conflict(message="Conflicto con el estado actual del recurso."):
+    """Respuesta HTTP 409."""
+    return _response(409, {"message": message})
+
+
 def internal_error(message="Error interno del servidor."):
     """Respuesta HTTP 500."""
     return _response(500, {"message": message})
-

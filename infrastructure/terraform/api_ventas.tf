@@ -26,9 +26,9 @@ resource "aws_apigatewayv2_route" "ventas_get" {
   target    = "integrations/${aws_apigatewayv2_integration.ventas_lambda.id}"
 }
 
-resource "aws_apigatewayv2_route" "ventas_delete" {
+resource "aws_apigatewayv2_route" "ventas_cancel" {
   api_id    = aws_apigatewayv2_api.productos.id
-  route_key = "DELETE /ventas/{id}"
+  route_key = "POST /ventas/{id}/anular"
   target    = "integrations/${aws_apigatewayv2_integration.ventas_lambda.id}"
 }
 
