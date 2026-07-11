@@ -3,7 +3,7 @@
     <section class="welcome card">
       <div>
         <span>Resumen general</span>
-        <h2>Bienvenido a ControlPyme</h2>
+        <h2>Te damos la bienvenida a ControlPyme</h2>
         <p>Administra productos, clientes, ventas y reportes desde una experiencia centralizada.</p>
       </div>
       <div class="welcome-badge">

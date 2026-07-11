@@ -21,7 +21,8 @@ Construir una solucion academica con practicas modernas de desarrollo cloud, usa
 - Validacion de cliente y producto antes de registrar ventas.
 - Descuento transaccional de stock al registrar ventas.
 - Devolucion transaccional de stock al anular ventas.
-- Reportes operativos de resumen, productos mas vendidos y clientes frecuentes.
+- Dashboard y reportes conectados a la API real con metricas operativas, productos mas vendidos y clientes frecuentes.
+- Presentacion clara de ingresos, ventas completadas, ventas anuladas, ticket promedio e inventario.
 - Alertas automaticas de bajo stock mediante EventBridge, Lambda y SNS.
 - Infraestructura definida con Terraform.
 
@@ -91,6 +92,7 @@ Componentes principales:
 - Los ingresos, ventas activas, ticket promedio, productos mas vendidos y clientes frecuentes consideran solo ventas completadas.
 - Las ventas anuladas no suman ingresos y pueden reportarse como metrica separada.
 - Las ventas antiguas sin `estado` se tratan como completadas para mantener compatibilidad historica.
+- El ticket promedio se presenta en frontend como `ingresos_totales / total_ventas`, sin incluir ventas anuladas.
 
 ### Alertas
 
@@ -105,12 +107,24 @@ El frontend esta en `frontend/` y contiene la base visual de **ControlPyme**:
 
 - Layout administrativo responsive.
 - Sidebar con navegacion principal.
-- Dashboard con metricas y graficas de presentacion.
+- Dashboard integrado con datos reales de reportes, productos y ventas.
+- Tarjetas de metricas con textos descriptivos y tooltips discretos para ingresos, ticket promedio y ventas anuladas.
+- Resumen de inventario con productos registrados, stock bajo, unidades vendidas y valor estimado.
 - Productos integrado con API real.
 - Clientes integrado con API real.
 - Ventas integrado con API real, incluyendo registro y anulacion segura.
-- Reportes visuales preparados para consumo de datos operativos.
+- Reportes integrados con API real y graficas Chart.js para productos mas vendidos y clientes frecuentes.
 - Instancia Axios configurada mediante `VITE_API_BASE_URL`.
+
+Metricas principales mostradas en Dashboard y Reportes:
+
+- `ingresos_totales`: ingresos generados por ventas completadas.
+- `total_ventas`: cantidad de ventas completadas.
+- `ventas_anuladas`: ventas anuladas que no generan ingresos.
+- `ticket_promedio`: ingreso promedio por venta completada.
+- `unidades_vendidas`: unidades vendidas, presentada dentro del resumen de inventario.
+- `productos_bajo_stock`: productos con stock menor o igual al umbral visual de bajo stock.
+- `valor_inventario`: valor estimado del inventario.
 
 Variable de entorno del frontend:
 
