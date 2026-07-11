@@ -5,7 +5,7 @@
       <p class="panel-subtitle">Últimos movimientos registrados</p>
     </div>
 
-    <div class="sales-list">
+    <div v-if="sales.length > 0" class="sales-list">
       <article v-for="sale in sales" :key="sale.id" class="sale-item">
         <div class="sale-avatar">
           <i class="pi pi-shopping-bag"></i>
@@ -16,6 +16,11 @@
         </div>
         <strong class="sale-total">{{ sale.total }}</strong>
       </article>
+    </div>
+
+    <div v-else class="empty-panel">
+      <i class="pi pi-shopping-cart"></i>
+      <span>No hay ventas recientes para mostrar.</span>
     </div>
   </section>
 </template>
@@ -79,5 +84,24 @@ defineProps({
 .sale-info span {
   color: var(--text-muted);
   font-size: 0.86rem;
+}
+
+.empty-panel {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 180px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-panel i {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--aws-orange);
+  background: var(--aws-orange-soft);
 }
 </style>

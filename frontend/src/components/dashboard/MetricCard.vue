@@ -3,9 +3,26 @@
     <div class="metric-icon" :style="{ '--metric-color': color }">
       <i :class="icon"></i>
     </div>
-    <span>{{ label }}</span>
+    <span class="metric-label">
+      {{ label }}
+      <i
+        v-if="tooltip"
+        v-tooltip.top="tooltip"
+        class="pi pi-info-circle metric-info"
+        aria-label="Información"
+      ></i>
+    </span>
     <strong>{{ value }}</strong>
     <small>{{ detail }}</small>
+    <small v-if="secondaryDetail" class="metric-secondary">
+      {{ secondaryDetail }}
+      <i
+        v-if="secondaryTooltip"
+        v-tooltip.top="secondaryTooltip"
+        class="pi pi-info-circle metric-info"
+        aria-label="Información"
+      ></i>
+    </small>
   </article>
 </template>
 
@@ -23,6 +40,18 @@ defineProps({
     type: String,
     default: '',
   },
+  secondaryDetail: {
+    type: String,
+    default: '',
+  },
+  tooltip: {
+    type: String,
+    default: '',
+  },
+  secondaryTooltip: {
+    type: String,
+    default: '',
+  },
   icon: {
     type: String,
     default: 'pi pi-chart-line',
@@ -36,10 +65,12 @@ defineProps({
 
 <style scoped>
 .metric-card {
+  height: 100%;
   min-height: 158px;
   padding: 18px;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 .metric-card::after {
@@ -64,10 +95,12 @@ defineProps({
   background: color-mix(in srgb, var(--metric-color) 14%, white);
 }
 
-span {
+.metric-label {
   position: relative;
   z-index: 1;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 18px;
   color: var(--text-muted);
   font-size: 0.82rem;
@@ -78,18 +111,36 @@ strong {
   position: relative;
   z-index: 1;
   display: block;
+  max-width: 100%;
   margin-top: 5px;
   color: var(--text-main);
-  font-size: 1.55rem;
+  font-size: clamp(1.35rem, 1.7vw, 1.85rem);
   line-height: 1.1;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-variant-numeric: tabular-nums;
 }
 
 small {
   position: relative;
   z-index: 1;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 7px;
   color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.metric-secondary {
+  color: var(--text-main);
+  font-weight: 750;
+}
+
+.metric-info {
+  color: var(--text-muted);
+  cursor: help;
   font-size: 0.78rem;
 }
 </style>
