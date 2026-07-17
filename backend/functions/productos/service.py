@@ -20,7 +20,7 @@ productos_table = dynamodb.Table(PRODUCTOS_TABLE)
 
 
 def _current_timestamp():
-    """Genera una fecha ISO 8601 en UTC para datos simulados."""
+    """Genera una fecha ISO 8601 en UTC para auditoria de registros."""
     return datetime.now(timezone.utc).isoformat()
 
 

@@ -107,6 +107,7 @@ Componentes principales:
 - Consulta productos con `Scan` paginado.
 - Publica una alerta consolidada en SNS cuando hay productos con bajo stock.
 - Variables de entorno: `PRODUCTOS_TABLE`, `SNS_TOPIC_ARN`, `STOCK_MINIMO`.
+- Configuracion Lambda: `timeout = 15` y `memory_size = 256` para evitar cortes prematuros durante el escaneo de productos.
 
 ## Frontend
 
@@ -228,8 +229,7 @@ aws_emprendimientos/
 │       └── alertas/
 ├── infrastructure/
 │   └── terraform/
-├── README.md
-└── docker-compose.yml
+└── README.md
 ```
 
 ## Pruebas locales

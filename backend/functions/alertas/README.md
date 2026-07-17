@@ -8,6 +8,15 @@ La Lambda esta pensada para ejecutarse periodicamente mediante Amazon EventBridg
 
 `EventBridge` ejecuta la regla programada, invoca la `Lambda`, la Lambda consulta productos en `DynamoDB` mediante `Scan` con paginacion y, si encuentra productos con bajo stock, publica una alerta consolidada en `SNS`.
 
+## Configuracion operativa
+
+La infraestructura Terraform configura esta Lambda con:
+
+- `timeout = 15`
+- `memory_size = 256`
+
+Estos valores evitan el timeout predeterminado de 3 segundos durante el escaneo paginado de productos.
+
 ## Variables de entorno
 
 - `PRODUCTOS_TABLE`: nombre de la tabla DynamoDB de productos. Obligatoria.

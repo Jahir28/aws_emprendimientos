@@ -138,6 +138,8 @@ resource "aws_lambda_function" "alertas" {
   runtime          = "python3.13"
   filename         = data.archive_file.alertas_lambda.output_path
   source_code_hash = data.archive_file.alertas_lambda.output_base64sha256
+  timeout          = 15
+  memory_size      = 256
 
   environment {
     variables = {

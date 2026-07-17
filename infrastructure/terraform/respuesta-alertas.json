@@ -1,1 +1,0 @@
-{"statusCode": 200, "headers": {"Content-Type": "application/json"}, "body": "{\"message\": \"Alerta de stock bajo enviada correctamente.\", \"data\": {\"productos_revisados\": 1, \"productos_bajo_stock\": 1, \"notificacion_enviada\": true, \"message_id\": \"5afc571d-9c0e-51b6-bdd9-35d6feab6078\"}}"}

@@ -1,10 +1,10 @@
 # Lambda Ventas
 
-Funcion AWS Lambda en Python 3.13 para registrar y consultar ventas. Usa Amazon DynamoDB mediante `boto3` y esta preparada para eventos de Amazon API Gateway HTTP API v2, manteniendo compatibilidad con REST API v1.
+Funcion AWS Lambda en Python 3.13 para registrar, consultar y anular ventas. Usa Amazon DynamoDB mediante `boto3` y esta preparada para eventos de Amazon API Gateway HTTP API v2, manteniendo compatibilidad con REST API v1.
 
 ## Proposito
 
-Registrar ventas validando la existencia del cliente y producto, descontando stock de forma condicional y guardando la venta resultante.
+Registrar ventas validando la existencia del cliente y producto, descontando stock de forma transaccional y guardando la venta resultante. La anulacion marca la venta como anulada y devuelve el stock al producto sin eliminar fisicamente el registro.
 
 ## Variables de entorno
 
@@ -17,9 +17,10 @@ Registrar ventas validando la existencia del cliente y producto, descontando sto
 - `GET /ventas`
 - `POST /ventas`
 - `GET /ventas/{id}`
-- `DELETE /ventas/{id}`
+- `POST /ventas/{id}/anular`
 
 No se implementa `PUT /ventas/{id}` porque una venta registrada no debe modificarse directamente.
+La eliminacion fisica esta deshabilitada; las ventas deben anularse con `POST /ventas/{id}/anular`.
 
 ## Estructura
 
@@ -40,6 +41,8 @@ ventas/
     └── delete.json
 ```
 
+El evento `delete.json` existe solo para validar que la eliminacion fisica devuelve una respuesta de rechazo.
+
 ## Ejecutar pruebas
 
 Desde esta carpeta:
@@ -49,4 +52,3 @@ python3 -m unittest discover tests
 ```
 
 Las pruebas mockean `boto3`; no se conectan a AWS.
-
